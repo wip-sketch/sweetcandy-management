@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finance Care - Home & Business 🌸</title>
+    <style>
+        :root {
+            --bg-blue: #e3f2fd;
+            --pastel-blue: #bbdefb;
+            --pastel-pink: #f8bbd0;
+            --pastel-green: #c8e6c9;
+            --white: #ffffff;
+            --text-color: #546e7a;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        body { background-color: var(--bg-blue); color: var(--text-color); margin: 0; min-height: 100vh; overflow-x: hidden; }
+
+        /* Animasi Bubble Latar Belakang */
+        .bubbles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+        .bubble { position: absolute; bottom: -100px; background: rgba(255, 255, 255, 0.7); border-radius: 50%; animation: rise 12s infinite ease-in; }
+        @keyframes rise {
+            0% { bottom: -100px; transform: translateX(0); }
+            50% { transform: translateX(80px); }
+            100% { bottom: 110vh; transform: translateX(-80px); }
+        }
+
+        .container { max-width: 900px; margin: 20px auto; padding: 20px; }
+        .card { background: rgba(255, 255, 255, 0.9); border-radius: 20px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.3); }
+
+        .nav-menu { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap; }
+        button { padding: 10px 15px; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-tab { background: var(--pastel-blue); color: #444; }
+        .btn-add { background: var(--pastel-green); color: #444; }
+        .btn-del { background: var(--pastel-pink); color: #444; font-size: 11px; }
+        .btn-archive { background: #cfd8dc; color: #444; }
+
+        input { padding: 10px; border: 1px solid #ddd; border-radius: 8px; margin: 5px 0; width: 100%; }
+        .hidden { display: none; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+        
+        .week-container { border-left: 4px solid var(--pastel-blue); padding-left: 15px; margin-bottom: 25px; background: rgba(240, 248, 255, 0.5); border-radius: 0 10px 10px 0; padding-top: 5px; }
+        .balance-badge { display: inline-block; padding: 5px 12px; background: var(--pastel-blue); border-radius: 20px; font-size: 13px; font-weight: bold; margin-right: 5px; }
+        .profit-text { color: #2e7d32; font-weight: bold; font-size: 18px; }
+    </style>
+</head>
+<body>
+
+    <div class="bubbles" id="bubble-container"></div>
+
+    <div class="container">
+        <h1 style="text-align: center;">Finance Management 🌸</h1>
+        
+        <div class="nav-menu">
+            <button class="btn-tab" onclick="showTab('rumahTangga')">🏠 Rumah Tangga</button>
+            <button class="btn-tab" onclick="showTab('bisnis')">💼 Bisnis</button>
+            <button class="btn-archive" onclick="showTab('arsipAll')">📂 Arsip Data</button>
+        </div>
+
+        <div id="rumahTangga" class="tab-content card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>Rumah Tangga</h2>
+                <button class="btn-add" onclick="saveRTToArchive()">Simpan Laporan</button>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                <div>
+                    <label>Bulan/Tahun:</label>
+                    <input type="month" id="rt-periode" onchange="loadRT()">
+                </div>
+                <div>
+                    <label>Pemasukan (Rp):</label>
+                    <input type="number" id="rt-pemasukan" placeholder="0" oninput="calcRT()">
+                </div>
+            </div>
+            <div id="rt-carry-over" style="margin-bottom: 15px; font-weight: bold; color: #666;"></div>
+            <div id="rt-weeks-ui"></div>
+        </div>
+
+        <div id="bisnis" class="tab-content card hidden">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>Bisnis</h2>
+                <button class="btn-add" onclick="saveBizToArchive()">Simpan Semua Bisnis</button>
+            </div>
+            <div class="card" style="background: #fdfdfd; border: 1px dashed var(--pastel-blue);">
+                <h4>Tambah Produk Baru</h4>
+                <input type="text" id="biz-name" placeholder="Nama Produk">
+                <input type="number" id="biz-initial-capital" placeholder="Modal Awal">
+                <button class="btn-add" style="width: 100%; margin-top: 5px;" onclick="addBizProduct()">Simpan Produk</button>
+            </div>
+            <hr>
+            <div id="biz-products-list"></div>
+        </div>
+
+        <div id="arsipAll" class="tab-content card hidden">
+            <h2>Arsip Simpanan</h2>
+            <h3>📂 Laporan Rumah Tangga</h3>
+            <div id="rt-archive-list"></div>
+            <br>
+            <h3>📂 Laporan Bisnis</h3>
+            <div id="biz-archive-list"></div>
+        </div>
+    </div>
+
+    <script>
+        // Animasi Bubbles
+        for(let i=0; i<15; i++) {
+            let b = document.createElement('div');
+            b.className = 'bubble';
+            b.style.left = Math.random() * 100 + '%';
+            b.style.width = b.style.height = (Math.random() * 50 + 20) + 'px';
+            b.style.animationDelay = Math.random() * 8 + 's';
+            document.getElementById('bubble-container').appendChild(b);
+        }
+
+        function showTab(id) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+            if(id === 'arsipAll') renderArchive();
+        }
+
+        // --- RUMAH TANGGA LOGIC ---
+        let rtStore = JSON.parse(localStorage.getItem('rtStore')) || {};
+        let rtArchives = JSON.parse(localStorage.getItem('rtArchives')) || {};
+
+        function loadRT() {
+            const period = document.getElementById('rt-periode').value;
+            if(!period) return;
+            if(!rtStore[period]) rtStore[period] = { income: 0, weeks: {1:[], 2:[], 3:[], 4:[], 5:[]} };
+            document.getElementById('rt-pemasukan').value = rtStore[period].income;
+            renderRTWeeks();
+        }
+
+        function renderRTWeeks() {
+            const container = document.getElementById('rt-weeks-ui');
+            container.innerHTML = '';
+            for(let i=1; i<=5; i++) {
+                container.innerHTML += `
+                    <div class="week-container">
+                        <h3>Minggu ${i}</h3>
+                        <div style="display: flex; gap: 5px;">
+                            <input type="text" id="rt-item-${i}" placeholder="Barang">
+                            <input type="number" id="rt-price-${i}" placeholder="Harga">
+                            <button class="btn-add" onclick="addRTItem(${i})">Simpan</button>
+                        </div>
+                        <table><tbody id="rt-list-${i}"></tbody></table>
+                        <div style="margin-top: 10px;">
+                            <span class="balance-badge">Total Keluar: Rp <span id="rt-total-week-${i}">0</span></span>
+                            <span class="balance-badge" style="background: #c8e6c9">Sisa Saldo: Rp <span id="rt-rem-${i}">0</span></span>
+                        </div>
+                    </div>
+                `;
+            }
+            calcRT();
+        }
+
+        function addRTItem(w) {
+            const p = document.getElementById('rt-periode').value;
+            const item = document.getElementById(`rt-item-${w}`).value;
+            const price = parseInt(document.getElementById(`rt-price-${w}`).value);
+            if(!item || !price) return;
+            rtStore[p].weeks[w].push({ name: item, price: price });
+            document.getElementById(`rt-item-${w}`).value = '';
+            document.getElementById(`rt-price-${w}`).value = '';
+            save(); calcRT();
+        }
+
+        function calcRT() {
+            const p = document.getElementById('rt-periode').value;
+            if(!p) return;
+            rtStore[p].income = parseInt(document.getElementById('rt-pemasukan').value) || 0;
+            const allMonths = Object.keys(rtStore).sort();
+            const idx = allMonths.indexOf(p);
+            let prevBalance = 0;
+            if(idx > 0) {
+                const prevM = rtStore[allMonths[idx-1]];
+                let spent = 0;
+                Object.values(prevM.weeks).forEach(w => w.forEach(i => spent += i.price));
+                prevBalance = prevM.income - spent;
+            }
+            document.getElementById('rt-carry-over').innerText = `Sisa dari bulan sebelumnya: Rp ${prevBalance.toLocaleString()}`;
+            let currentBalance = rtStore[p].income + prevBalance;
+            for(let i=1; i<=5; i++) {
+                let weekSpent = 0;
+                const tbody = document.getElementById(`rt-list-${i}`);
+                tbody.innerHTML = '';
+                rtStore[p].weeks[i].forEach((it, itIdx) => {
+                    weekSpent += it.price;
+                    tbody.innerHTML += `<tr><td>${it.name}</td><td>${it.price.toLocaleString()}</td><td><button class="btn-del" onclick="delRT('${p}',${i},${itIdx})">Hapus</button></td></tr>`;
+                });
+                document.getElementById(`rt-total-week-${i}`).innerText = weekSpent.toLocaleString();
+                currentBalance -= weekSpent;
+                document.getElementById(`rt-rem-${i}`).innerText = currentBalance.toLocaleString();
+            }
+            save();
+        }
+
+        function delRT(p, w, i) { rtStore[p].weeks[w].splice(i, 1); save(); renderRTWeeks(); }
+
+        // --- BISNIS LOGIC ---
+        let bizStore = JSON.parse(localStorage.getItem('bizStore')) || [];
+        let bizArchives = JSON.parse(localStorage.getItem('bizArchives')) || [];
+
+        function addBizProduct() {
+            const name = document.getElementById('biz-name').value;
+            const cap = parseInt(document.getElementById('biz-initial-capital').value) || 0;
+            if(!name) return;
+            bizStore.push({ name, initialCapital: cap, materials: [], sales: [] });
+            save(); renderBiz();
+            document.getElementById('biz-name').value = '';
+            document.getElementById('biz-initial-capital').value = '';
+        }
+
+        function renderBiz() {
+            const container = document.getElementById('biz-products-list');
+            container.innerHTML = '';
+            bizStore.forEach((prod, idx) => {
+                let totalMat = prod.materials.reduce((a,b) => a + b.price, 0);
+                let totalSale = prod.sales.reduce((a,b) => a + b.price, 0);
+                // REVISI: Penghasilan bersih hanya dari total modal rincian
+                let netProfit = totalSale - totalMat;
+
+                container.innerHTML += `
+                    <div class="card" style="border-top: 5px solid var(--pastel-pink)">
+                        <h3>📦 ${prod.name}</h3>
+                        <p>Modal Awal: <b>Rp ${prod.initialCapital.toLocaleString()}</b></p>
+                        <div style="background: #f9f9f9; padding: 10px; border-radius: 10px;">
+                            <strong>Rincian Pembelian Modal (Bahan/Alat):</strong>
+                            <div style="display: flex; gap:5px; margin: 5px 0;">
+                                <input type="text" id="mat-n-${idx}" placeholder="Nama Barang">
+                                <input type="number" id="mat-p-${idx}" placeholder="Harga">
+                                <button class="btn-add" onclick="addBizMat(${idx})">+</button>
+                            </div>
+                            <table>${prod.materials.map((m, mi) => `<tr><td>${m.name}</td><td>${m.price.toLocaleString()}</td><td><button class="btn-del" onclick="delMat(${idx},${mi})">x</button></td></tr>`).join('')}</table>
+                            <p>Total Modal Rincian: Rp ${totalMat.toLocaleString()}</p>
+                        </div>
+                        <div style="background: #e8f5e9; padding: 10px; border-radius: 10px; margin-top: 10px;">
+                            <strong>Menu Penjualan:</strong>
+                            <div style="display: flex; gap:5px; margin: 5px 0;">
+                                <input type="date" id="sal-d-${idx}">
+                                <input type="number" id="sal-p-${idx}" placeholder="Harga Jual">
+                                <button class="btn-add" onclick="addBizSale(${idx})">Tambah</button>
+                            </div>
+                            <table>${prod.sales.map((s, si) => `<tr><td>${s.date}</td><td>${s.price.toLocaleString()}</td><td><button class="btn-del" onclick="delSale(${idx},${si})">x</button></td></tr>`).join('')}</table>
+                        </div>
+                        <div style="margin-top: 15px; text-align: center; border-top: 1px solid #ddd; padding-top: 10px;">
+                            <div>Penghasilan Bersih (Jual - Modal Rincian):</div>
+                            <div class="profit-text">Rp ${netProfit.toLocaleString()}</div>
+                        </div>
+                        <button class="btn-del" style="width:100%; margin-top: 10px;" onclick="delBizProd(${idx})">Hapus Produk</button>
+                    </div>
+                `;
+            });
+        }
+
+        function addBizMat(idx) {
+            const name = document.getElementById(`mat-n-${idx}`).value;
+            const price = parseInt(document.getElementById(`mat-p-${idx}`).value);
+            if(name && price) { bizStore[idx].materials.push({name, price}); save(); renderBiz(); }
+        }
+
+        function addBizSale(idx) {
+            const date = document.getElementById(`sal-d-${idx}`).value;
+            const price = parseInt(document.getElementById(`sal-p-${idx}`).value);
+            if(date && price) { bizStore[idx].sales.push({date, price}); save(); renderBiz(); }
+        }
+
+        function delMat(pI, mI) { bizStore[pI].materials.splice(mI, 1); save(); renderBiz(); }
+        function delSale(pI, sI) { bizStore[pI].sales.splice(sI, 1); save(); renderBiz(); }
+        function delBizProd(i) { if(confirm('Hapus produk?')) { bizStore.splice(i, 1); save(); renderBiz(); } }
+
+        // --- ARSIP LOGIC ---
+        function saveRTToArchive() {
+            const period = document.getElementById('rt-periode').value;
+            if(!period) return;
+            rtArchives[period] = JSON.parse(JSON.stringify(rtStore[period]));
+            localStorage.setItem('rtArchives', JSON.stringify(rtArchives));
+            alert('Laporan Rumah Tangga ' + period + ' disimpan ke Arsip!');
+        }
+
+        function saveBizToArchive() {
+            const timestamp = new Date().toLocaleString();
+            bizArchives.push({ date: timestamp, data: JSON.parse(JSON.stringify(bizStore)) });
+            localStorage.setItem('bizArchives', JSON.stringify(bizArchives));
+            alert('Laporan Bisnis disimpan ke Arsip!');
+        }
+
+        function renderArchive() {
+            const rtList = document.getElementById('rt-archive-list');
+            rtList.innerHTML = '';
+            Object.keys(rtArchives).forEach(period => {
+                rtList.innerHTML += `<div class="card" style="padding:10px; cursor:pointer; background:var(--pastel-blue)" onclick="viewRTArchive('${period}')">Bulan: ${period} (Klik untuk Lihat)</div>`;
+            });
+
+            const bizList = document.getElementById('biz-archive-list');
+            bizList.innerHTML = '';
+            bizArchives.forEach((arch, idx) => {
+                bizList.innerHTML += `<div class="card" style="padding:10px; cursor:pointer; background:var(--pastel-pink)" onclick="viewBizArchive(${idx})">Arsip Bisnis: ${arch.date} (Klik untuk Lihat)</div>`;
+            });
+        }
+
+        function viewRTArchive(p) {
+            document.getElementById('rt-periode').value = p;
+            rtStore[p] = JSON.parse(JSON.stringify(rtArchives[p]));
+            showTab('rumahTangga');
+            loadRT();
+        }
+
+        function viewBizArchive(idx) {
+            bizStore = JSON.parse(JSON.stringify(bizArchives[idx].data));
+            showTab('bisnis');
+            renderBiz();
+        }
+
+        function save() {
+            localStorage.setItem('rtStore', JSON.stringify(rtStore));
+            localStorage.setItem('bizStore', JSON.stringify(bizStore));
+        }
+
+        // Init
+        const now = new Date();
+        document.getElementById('rt-periode').value = now.toISOString().substring(0, 7);
+        loadRT();
+        renderBiz();
+    </script>
+</body>
+</html>
